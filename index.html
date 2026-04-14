@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudSnap Pro | Persistence Mode</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&family=Inter:wght@400;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #000; color: #eee; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .drop-zone--over { border-color: #3b82f6 !important; background: rgba(59, 130, 246, 0.05); }
+        .glass { background: rgba(10, 10, 10, 0.8); backdrop-filter: blur(10px); border: 1px solid #1a1a1a; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-6">
+
+    <div class="max-w-xl w-full bg-[#080808] border border-zinc-900 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+        
+        <button onclick="toggleSettings()" class="absolute top-6 right-6 text-zinc-500 hover:text-white transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+        </button>
+
+        <div class="mb-8 text-center">
+            <h1 class="text-2xl sm:text-3xl font-bold text-white tracking-tight">Cloud Snap</h1>
+            <p class="text-zinc-500 mt-2 text-xs uppercase tracking-widest">Asset Manager & Persistence Host</p>
+        </div>
+
+        <div id="settingsPanel" class="hidden mb-8 p-6 glass rounded-2xl space-y-4 animate-in fade-in zoom-in duration-200">
+            <h3 class="text-xs font-bold text-blue-500 uppercase tracking-widest">Storage Configuration</h3>
+            <div>
+                <label class="text-[10px] text-zinc-500 font-bold uppercase">GitHub Token</label>
+                <input type="password" id="inputToken" class="w-full bg-black border border-zinc-800 p-2 rounded-lg mt-1 text-sm outline-none focus:border-blue-500">
+            </div>
+            <div>
+                <label class="text-[10px] text-zinc-500 font-bold uppercase">Repository (User/Repo)</label>
+                <input type="text" id="inputRepo" class="w-full bg-black border border-zinc-800 p-2 rounded-lg mt-1 text-sm outline-none focus:border-blue-500">
+            </div>
+            <div class="flex gap-4">
+                <button onclick="saveToStorage()" class="flex-1 bg-zinc-100 text-black text-[10px] font-black py-2 rounded-lg uppercase hover:bg-white transition-all">Save & Apply</button>
+                <button onclick="clearStorage()" class="flex-1 bg-red-950/30 text-red-500 text-[10px] font-black py-2 rounded-lg uppercase border border-red-900/50 hover:bg-red-900/40 transition-all">Reset Default</button>
+            </div>
+        </div>
+
+        <div id="dropZone" class="relative overflow-hidden border-2 border-dashed border-zinc-800 rounded-2xl p-16 text-center cursor-pointer hover:border-zinc-700 transition-all group">
+            <input type="file" id="fileInput" class="hidden" accept="image/*">
+            <div class="relative z-10">
+                <div class="w-12 h-12 bg-zinc-900 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                </div>
+                <p class="text-zinc-400 text-sm font-medium">Drop image here or <span class="text-blue-500 font-bold">browse</span></p>
+                <p id="currentRepoLabel" class="text-[9px] text-zinc-600 mt-4 mono truncate"></p>
+            </div>
+        </div>
+
+        <div id="status" class="hidden mt-6 text-center">
+            <div class="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/10 rounded-full border border-blue-500/20">
+                <div class="w-2 h-2 bg-blue-500 rounded-full animate-ping"></div>
+                <span id="statusText" class="text-[10px] font-black text-blue-500 uppercase tracking-widest">Compressing & Uploading...</span>
+            </div>
+        </div>
+        
+        <div id="resultArea" class="hidden mt-8 space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div class="p-5 bg-zinc-950 border border-zinc-800 rounded-2xl">
+                <label class="block text-[10px] font-bold text-zinc-500 uppercase mb-3 tracking-widest">jsDelivr Optimized Link</label>
+                <div class="flex flex-col gap-3">
+                    <input type="text" id="outputUrl" readonly class="w-full bg-zinc-900 border border-zinc-800 p-3 rounded-xl text-blue-400 mono text-[11px] outline-none">
+                    <button onclick="copyLink()" id="copyBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl text-xs font-black transition-all uppercase tracking-widest">Copy Link</button>
+                </div>
+            </div>
+            <img id="preview" class="w-full h-32 object-contain rounded-xl border border-zinc-900 bg-zinc-900/50">
+        </div>
+    </div>
+
+    <script>
+        /***********************************************************
+         * 🟡 YELLOW ZONE: DEFAULT HARD-CODED SETTINGS
+         ***********************************************************/
+        const DEFAULT_TOKEN = "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"; 
+        const DEFAULT_REPO  = "shayanquickbiz-code/Nayel_images_BG";
+        const BRANCH        = "main"; 
+
+        // State Variables
+        let activeToken = "";
+        let activeRepo = "";
+
+        // On Load: Check local storage or use defaults
+        window.addEventListener('DOMContentLoaded', () => {
+            activeToken = localStorage.getItem('cs_token') || DEFAULT_TOKEN;
+            activeRepo = localStorage.getItem('cs_repo') || DEFAULT_REPO;
+            
+            // Sync inputs
+            document.getElementById('inputToken').value = activeToken;
+            document.getElementById('inputRepo').value = activeRepo;
+            updateUI();
+        });
+
+        function updateUI() {
+            document.getElementById('currentRepoLabel').innerText = `Target: ${activeRepo}`;
+        }
+
+        function toggleSettings() {
+            const panel = document.getElementById('settingsPanel');
+            panel.classList.toggle('hidden');
+        }
+
+        function saveToStorage() {
+            const t = document.getElementById('inputToken').value.trim();
+            const r = document.getElementById('inputRepo').value.trim();
+            
+            if(!t || !r) return alert("Please fill both fields");
+
+            localStorage.setItem('cs_token', t);
+            localStorage.setItem('cs_repo', r);
+            activeToken = t;
+            activeRepo = r;
+            
+            updateUI();
+            toggleSettings();
+            alert("Settings saved to browser memory!");
+        }
+
+        function clearStorage() {
+            localStorage.removeItem('cs_token');
+            localStorage.removeItem('cs_repo');
+            activeToken = DEFAULT_TOKEN;
+            activeRepo = DEFAULT_REPO;
+            document.getElementById('inputToken').value = activeToken;
+            document.getElementById('inputRepo').value = activeRepo;
+            updateUI();
+            alert("Reset to default code settings.");
+        }
+
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const status = document.getElementById('status');
+        const resultArea = document.getElementById('resultArea');
+        const outputUrl = document.getElementById('outputUrl');
+        const preview = document.getElementById('preview');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drop-zone--over'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drop-zone--over'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drop-zone--over');
+            if (e.dataTransfer.files.length) handleUpload(e.dataTransfer.files[0]);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) handleUpload(e.target.files[0]);
+        });
+
+        /**
+         * 🟢 NEW: Perceptually Lossless Image Compression
+         * Draws the image to a canvas and exports it as WebP at 0.95 quality.
+         * Retains original dimensions and transparency, dropping file size drastically.
+         */
+        function compressImage(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        
+                        // Export as WebP for optimal size/quality ratio
+                        const compressedDataUrl = canvas.toDataURL('image/webp', 0.95);
+                        const base64 = compressedDataUrl.split(',')[1];
+                        
+                        resolve({ base64, dataUrl: compressedDataUrl });
+                    };
+                    img.onerror = (err) => reject(err);
+                };
+            });
+        }
+
+        async function handleUpload(file) {
+            status.classList.remove('hidden');
+            resultArea.classList.add('hidden');
+
+            try {
+                // 1. Compress Image
+                const { base64, dataUrl } = await compressImage(file);
+
+                // 2. Format Filename (Force .webp extension since we converted it)
+                const baseName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+                const cleanName = baseName.replace(/[^a-zA-Z0-9]/g, '-');
+                const fileName = `images/${Date.now()}-${cleanName}.webp`;
+                const apiUrl = `https://api.github.com/repos/${activeRepo}/contents/${fileName}`;
+
+                // 3. Upload to GitHub
+                const res = await fetch(apiUrl, {
+                    method: 'PUT',
+                    headers: { 
+                        'Authorization': `Bearer ${activeToken}`, 
+                        'Content-Type': 'application/json' 
+                    },
+                    body: JSON.stringify({ 
+                        message: `Upload & Compress asset: ${file.name}`, 
+                        content: base64, 
+                        branch: BRANCH 
+                    })
+                });
+
+                if (res.ok) {
+                    const cdn = `https://cdn.jsdelivr.net/gh/${activeRepo}@${BRANCH}/${fileName}`;
+                    outputUrl.value = cdn;
+                    preview.src = dataUrl; // Use compressed image for preview
+                    resultArea.classList.remove('hidden');
+                } else {
+                    const err = await res.json();
+                    if (res.status === 401) alert("❌ BAD CREDENTIALS: Check your Token.");
+                    else if (res.status === 404) alert("❌ REPO NOT FOUND: Check the Repo Name.");
+                    else alert("❌ ERROR: " + err.message);
+                }
+            } catch (e) { 
+                console.error(e);
+                alert("Processing/Network Error. Check console."); 
+            } finally {
+                status.classList.add('hidden');
+            }
+        }
+
+        function copyLink() {
+            outputUrl.select();
+            document.execCommand('copy');
+            const btn = document.getElementById('copyBtn');
+            btn.innerText = "COPIED!";
+            btn.classList.replace('bg-blue-600', 'bg-emerald-600');
+            setTimeout(() => {
+                btn.innerText = "COPY LINK";
+                btn.classList.replace('bg-emerald-600', 'bg-blue-600');
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
